@@ -1,0 +1,143 @@
+Let me build you a complete, elite-level Replit prompt with every detail spelled out.Here is the complete, step-by-step elite build plan — followed by the full Replit prompt at the end.
+
+---
+
+## What makes this elite vs basic
+
+A basic Bookd is CRUD with a login page. An elite Bookd has real-world architecture decisions, advanced features, and a UI that looks like a funded startup product. Here's every step:
+
+---Now here is the full Replit prompt — paste this exactly as one message into Replit AI:
+
+---
+
+## The Elite Replit Prompt
+
+> **Build an elite, recruiter-grade full-stack booking platform called "Bookd" using Java 17 + Spring Boot 3 (backend) and React 18 with plain JavaScript/JSX + Vite (frontend, NO TypeScript). MySQL for the database. This must look and work like a funded startup product, not a tutorial project.**
+>
+> ---
+>
+> ### PART 1 — BACKEND (Spring Boot, Maven, Java 17)
+>
+> **Dependencies:** Spring Web, Spring Data JPA, Spring Security 6, MySQL Driver, Lombok, JJWT (0.11.5), Spring Boot Validation, JavaMailSender, Spring Data JPA Auditing, DevTools.
+>
+> **Package structure under `com.bookd`:**
+> `controller` `service` `repository` `entity` `dto/request` `dto/response` `exception` `config` `security` `util`
+>
+> **Entities (all with `@CreatedDate` / `@LastModifiedDate` audit fields via `@EnableJpaAuditing`):**
+>
+> - `User` — id (UUID), name, email (unique), passwordHash, role (enum: CUSTOMER, PROVIDER), phone, avatarUrl, isActive (default true), createdAt
+> - `ServiceListing` — id (UUID), provider (ManyToOne User), title, description, category (enum: HEALTH, BEAUTY, FITNESS, EDUCATION, HOME, OTHER), price (BigDecimal), durationMinutes (int), location, imageUrl, isActive, createdAt
+> - `Availability` — id, serviceListing (ManyToOne), slotDate (LocalDate), startTime (LocalTime), endTime (LocalTime), isBooked (default false). Composite index on (service_id, slot_date).
+> - `Booking` — id (UUID), customer (ManyToOne User), serviceListing (ManyToOne), availability (OneToOne), status (enum: PENDING, CONFIRMED, CANCELLED, COMPLETED), totalPrice (BigDecimal), notes, createdAt. Index on customer_id and status.
+> - `Review` — id, booking (OneToOne, unique), customer (ManyToOne), serviceListing (ManyToOne), rating (int 1–5), comment, createdAt
+> - `Notification` — id, user (ManyToOne), type (String), message, isRead (default false), createdAt
+>
+> **DTOs:** Never expose entities directly. Create request/response DTOs for every endpoint. Map manually or with a `Mapper` utility class.
+>
+> **Security:**
+> - `JwtUtil` class: generate token (15 min expiry), generate refresh token (7 days), validate token, extract email
+> - `JwtAuthFilter` extends `OncePerRequestFilter`: reads `Authorization: Bearer` header, validates token, sets `SecurityContextHolder`
+> - `SecurityConfig`: permit `/api/auth/**` and `GET /api/services/**` publicly; all other routes require authentication. Stateless session. BCryptPasswordEncoder bean.
+>
+> **Controllers and service logic:**
+>
+> `AuthController` — `POST /api/auth/register` (returns JWT + user info), `POST /api/auth/login` (returns JWT + refresh token), `POST /api/auth/refresh`
+>
+> `ServiceController` — `GET /api/services` (public, supports query params: `category`, `minPrice`, `maxPrice`, `location`, `page`, `size`, `sort`; uses JPA Specifications), `GET /api/services/{id}`, `POST /api/services` (PROVIDER only, `@PreAuthorize`), `PUT /api/services/{id}` (own service only), `DELETE /api/services/{id}` (soft delete: set isActive=false)
+>
+> `AvailabilityController` — `GET /api/availability/{serviceId}?date=YYYY-MM-DD` (returns available slots only), `POST /api/availability` (PROVIDER only, can bulk-insert slots for a date range)
+>
+> `BookingController` — `POST /api/bookings` (use `@Transactional` + `@Lock(LockModeType.PESSIMISTIC_WRITE)` on availability check to prevent double-booking; if slot `isBooked=true` throw `SlotAlreadyBookedException`; save booking; mark slot booked; trigger email), `GET /api/bookings/my` (paginated, filterable by status), `PUT /api/bookings/{id}/cancel` (only if status is PENDING or CONFIRMED and booking belongs to caller), `PUT /api/bookings/{id}/complete` (PROVIDER only)
+>
+> `ReviewController` — `POST /api/reviews` (only if booking status is COMPLETED and no review exists yet), `GET /api/reviews/service/{serviceId}` (paginated, sorted by newest)
+>
+> `ProviderController` — `GET /api/provider/stats` returns: totalBookings, totalRevenue (sum of completed booking prices), averageRating, bookingsThisMonth, revenueByWeek (last 8 weeks as list). Use `@Query` JPQL aggregations.
+>
+> `NotificationController` — `GET /api/notifications/my` (unread first), `PUT /api/notifications/read-all`
+>
+> **Global exception handler** — `@RestControllerAdvice` class catching: `ResourceNotFoundException` (404), `SlotAlreadyBookedException` (409), `AccessDeniedException` (403), `MethodArgumentNotValidException` (400, extracts field errors), generic `Exception` (500). All return `{ "status": int, "error": string, "message": string, "timestamp": string }`.
+>
+> **Email** — `EmailService` using `JavaMailSender` sends HTML email on booking confirmed (includes service name, date, time, provider name, booking ID) and on cancellation.
+>
+> **CORS** — allow `http://localhost:5173` and the deployed frontend Replit URL.
+>
+> **`application.properties`** — use environment variables for all secrets: `${DB_URL}`, `${DB_USER}`, `${DB_PASS}`, `${JWT_SECRET}`, `${MAIL_USER}`, `${MAIL_PASS}`. Set `spring.jpa.hibernate.ddl-auto=update`, `spring.jpa.show-sql=false`.
+>
+> **Data seeder** — `DataSeeder` class with `@Component` + `CommandLineRunner`: if database is empty, insert 2 providers, 1 customer, 6 service listings across 3 categories, availability slots for the next 14 days, 8 bookings across all statuses, and 3 reviews. This makes the live demo look alive.
+>
+> ---
+>
+> ### PART 2 — FRONTEND (React 18, Vite, plain JavaScript JSX)
+>
+> No TypeScript. All files `.jsx` or `.js`.
+>
+> **Install:** `axios`, `react-router-dom`, `framer-motion`, `react-hot-toast`, `date-fns`, `recharts`, `lucide-react`, `tailwindcss` + `postcss` + `autoprefixer`.
+>
+> **Tailwind config:** custom colors — primary: deep slate `#0F172A`, accent: teal `#0D9488`, surface: `#F8FAFC`. Custom fonts: `'Outfit'` for headings (weights 500, 700), `'DM Sans'` for body (weights 400, 500) — load both from Google Fonts in `index.html`.
+>
+> **Environment:** `VITE_API_URL` in `.env` pointing to the Spring Boot base URL.
+>
+> **Axios instance** (`src/services/api.js`): base URL from env, request interceptor attaches `Authorization: Bearer <token>` from localStorage, response interceptor catches 401 and redirects to `/login`.
+>
+> **Auth context** (`src/context/AuthContext.jsx`): stores `{ user, token }`, provides `login()`, `logout()`, `register()` — token persisted in localStorage. `PrivateRoute` and `ProviderRoute` wrapper components that redirect if unauthenticated or wrong role.
+>
+> **Custom hooks:** `useDebounce(value, 300)`, `useAuth()`, `usePagination(fetchFn, params)`, `useBookingFlow()` (manages 3-step wizard state).
+>
+> **Reusable component library** (`src/components/ui/`):
+> - `Button` — variants: primary (teal filled), secondary (outline), danger (red outline), ghost; sizes: sm, md, lg; loading state with spinner
+> - `Badge` — variants: success (green), warning (yellow), danger (red), info (blue), neutral (gray) — maps to booking statuses
+> - `Card` — white bg, rounded-xl, subtle border, optional hover lift transition
+> - `Skeleton` — animated pulse placeholder in the shape of a card or text line
+> - `Avatar` — shows image or initials fallback with coloured background
+> - `Modal` — renders as overlay (using a normal-flow faux-viewport div, not fixed position), accepts `isOpen`, `onClose`, `title`, `children`
+> - `StarRating` — interactive 5-star picker and display-only variant
+> - `Spinner` — small inline loading indicator
+>
+> **Pages:**
+>
+> `LandingPage` (`/`) — dark hero section (slate `#0F172A` bg) with the Bookd logo, tagline "Book anything. Instantly.", subtitle, two CTA buttons (Browse Services, Sign Up). Below: 6 service category cards in a responsive grid with icons and hover scale animation. Below: "How it works" 3-step section. Below: featured provider cards. All sections animate in on scroll using Framer Motion `whileInView` with staggered children.
+>
+> `ServicesPage` (`/services`) — left sidebar (collapsible on mobile) with category filter (checkbox group), price range slider (min/max), location text input, clear filters button. Right: search bar with debounced live filtering, "X results" count, sort dropdown (price asc/desc, rating, newest). Service cards in responsive grid — each card has service image (or placeholder gradient), provider avatar + name, service title, category badge, duration chip, star rating with review count, price, and a "Book Now" button. Skeleton cards shown during loading. Pagination controls at bottom.
+>
+> `ServiceDetailPage` (`/services/:id`) — hero image, title, provider info with avatar, description, category + duration + location chips, average star rating with review count, pricing. Right sidebar: date picker (custom calendar grid, available dates highlighted in teal, past dates and fully-booked dates greyed out). On date select, show time slot chips below (available = teal outline, booked = greyed disabled). "Book This Slot" button opens confirmation modal showing summary before submitting.
+>
+> `BookingConfirmModal` — shows: service name, provider, selected date + time, price, notes textarea, confirm button with loading state. On success: toast "Booking confirmed!" + navigate to dashboard.
+>
+> `CustomerDashboardPage` (`/dashboard`) — greeting with user's name, stats row (upcoming bookings count, completed bookings, total spent). Tabs: Upcoming | Past | Cancelled. Each booking is a horizontal card showing: service image thumbnail, service name, provider name, date + time, status badge, and action buttons (Cancel for upcoming, Leave Review for completed if no review exists). Cancel opens a confirmation modal. Leave Review opens a star rating + comment modal.
+>
+> `ProviderDashboardPage` (`/provider/dashboard`) — stats row of 4 metric cards (total revenue formatted as currency, bookings this month, average rating with star, active services count). Below: recharts `LineChart` showing revenue by week (last 8 weeks) — clean, minimal chart with teal line, no grid clutter, custom tooltip. Below: two-column layout — left: upcoming bookings table (customer name, service, date, status, mark-complete button); right: manage services panel (list of own services with edit/deactivate toggle, + Add New Service button that opens a modal form).
+>
+> `AddEditServiceModal` — form fields: title, category (select), description (textarea), price, duration, location, image URL. Validation: all required, price > 0, duration > 0. Submit calls POST or PUT endpoint.
+>
+> `ManageAvailabilityPage` (`/provider/availability`) — calendar view of a selected service's availability. Provider picks a date range and time slots to bulk-create. Existing slots shown with booked/available colour coding.
+>
+> `ProfilePage` (`/profile`) — avatar upload (preview before save), name, phone edit form. Change password section (current password, new, confirm — validated that new ≠ current and confirm matches). Notification preferences toggle (not wired to backend, just UI state). Danger zone: delete account button with typed-confirmation modal ("type DELETE to confirm").
+>
+> `NotificationDropdown` — bell icon in navbar. On click: dropdown of last 10 notifications, unread shown with a teal dot, timestamp formatted as "2 hours ago" using date-fns. "Mark all read" button at top. Unread count badge on bell icon (hidden when 0).
+>
+> `AuthPages` — `/login` and `/register` as clean centred card layouts. Register form has role selector (Customer / Provider). Form validation with inline field error messages. Animated mount transition. Link to switch between login and register.
+>
+> `NotFoundPage` — clean 404 with "Go Home" button.
+>
+> **Global UI polish:**
+> - `react-hot-toast` toasts for all success and error states, positioned top-right
+> - Loading skeleton shown any time a page-level data fetch is in progress
+> - Error boundary component wraps the app — friendly fallback on crash
+> - Dark mode toggle in navbar using Tailwind's `dark:` classes, persisted in localStorage
+> - Smooth page transitions using Framer Motion `AnimatePresence`
+> - All buttons disable and show a spinner during pending API calls
+> - Empty states: if no bookings / no services / no reviews, show a centred illustration-placeholder and a helpful action button — never a blank page
+>
+> ---
+>
+> ### PART 3 — README (include this in the repo)
+>
+> `README.md` must include: project description, tech stack badges, architecture overview (describe the Controller–Service–Repository pattern), full API endpoint table (method, path, auth required, description), local setup instructions for both backend and frontend, screenshots section (placeholder links), and a "Key Engineering Decisions" section explaining pessimistic locking for booking, JWT stateless auth, JPA Specifications for dynamic filtering, and DTO pattern for API contract stability.
+>
+> ---
+>
+> Build the backend first (entities → repositories → services → controllers → security), then the frontend (design system → auth → services page → booking flow → dashboards). Use placeholder images from `https://picsum.photos` where image uploads are not implemented. Make every page look polished enough that a recruiter clicking the live Replit URL is immediately impressed.
+
+---
+
+That prompt will build something genuinely elite. The key things that make recruiters stop scrolling are: pessimistic locking (shows you understand concurrency), JPA Specifications (shows query design thinking), the provider analytics dashboard with Recharts (shows you build real product features, not just CRUD), the 3-step booking wizard, and the seeded demo data so it looks alive on first visit. The README with the "Key Engineering Decisions" section is what gets you interview questions instead of rejections.

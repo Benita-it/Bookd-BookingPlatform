@@ -1,22 +1,37 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Bookd API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: services
+    description: Service listing operations
+  - name: availability
+    description: Availability slot operations
+  - name: bookings
+    description: Booking operations
+  - name: reviews
+    description: Review operations
+  - name: provider
+    description: Provider dashboard operations
+  - name: notifications
+    description: Notification operations
+  - name: users
+    description: User profile operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +39,549 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      tags: [auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshInput"
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /services:
+    get:
+      operationId: listServices
+      tags: [services]
+      summary: List services with optional filters
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of services
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceListResponse"
+    post:
+      operationId: createService
+      tags: [services]
+      summary: Create a new service listing (PROVIDER only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceInput"
+      responses:
+        "201":
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+
+  /services/{id}:
+    get:
+      operationId: getService
+      tags: [services]
+      summary: Get a service by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Service details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      operationId: updateService
+      tags: [services]
+      summary: Update a service listing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceUpdate"
+      responses:
+        "200":
+          description: Service updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+    delete:
+      operationId: deleteService
+      tags: [services]
+      summary: Soft-delete a service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Service deactivated
+
+  /availability:
+    get:
+      operationId: getServiceAvailability
+      tags: [availability]
+      summary: Get availability slots for a service (pass serviceId as query param)
+      parameters:
+        - name: serviceId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of availability slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Availability"
+    post:
+      operationId: createAvailability
+      tags: [availability]
+      summary: Create availability slots (PROVIDER only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AvailabilityInput"
+      responses:
+        "201":
+          description: Slots created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Availability"
+
+  /bookings:
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a booking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingInput"
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "409":
+          description: Slot already booked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /bookings/my:
+    get:
+      operationId: listMyBookings
+      tags: [bookings]
+      summary: Get current user bookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListResponse"
+
+  /bookings/{id}/cancel:
+    put:
+      operationId: cancelBooking
+      tags: [bookings]
+      summary: Cancel a booking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+
+  /bookings/{id}/complete:
+    put:
+      operationId: completeBooking
+      tags: [bookings]
+      summary: Mark booking as complete (PROVIDER only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Booking completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+
+  /reviews:
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Create a review for a completed booking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewInput"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+    get:
+      operationId: listServiceReviews
+      tags: [reviews]
+      summary: Get reviews for a service (pass serviceId as query param)
+      parameters:
+        - name: serviceId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewListResponse"
+
+  /provider/stats:
+    get:
+      operationId: getProviderStats
+      tags: [provider]
+      summary: Get provider dashboard stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderStats"
+
+  /provider/bookings:
+    get:
+      operationId: listProviderBookings
+      tags: [provider]
+      summary: Get bookings for provider services
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Provider bookings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListResponse"
+
+  /provider/services:
+    get:
+      operationId: listMyServices
+      tags: [provider]
+      summary: Get provider own services
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Service"
+
+  /notifications/my:
+    get:
+      operationId: listMyNotifications
+      tags: [notifications]
+      summary: Get current user notifications
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    put:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /users/me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    put:
+      operationId: updateMe
+      tags: [users]
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/me/password:
+    put:
+      operationId: changePassword
+      tags: [users]
+      summary: Change current user password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChangeInput"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +591,483 @@ components:
       required:
         - status
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [CUSTOMER, PROVIDER]
+        phone:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - role
+        - isActive
+        - createdAt
+
+    RegisterInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [CUSTOMER, PROVIDER]
+        phone:
+          type: string
+      required:
+        - name
+        - email
+        - password
+        - role
+
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    RefreshInput:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      required:
+        - refreshToken
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - refreshToken
+        - user
+
+    Service:
+      type: object
+      properties:
+        id:
+          type: string
+        providerId:
+          type: string
+        provider:
+          $ref: "#/components/schemas/User"
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [HEALTH, BEAUTY, FITNESS, EDUCATION, HOME, OTHER]
+        price:
+          type: number
+        durationMinutes:
+          type: integer
+        location:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        averageRating:
+          type: ["number", "null"]
+        reviewCount:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - providerId
+        - provider
+        - title
+        - description
+        - category
+        - price
+        - durationMinutes
+        - location
+        - isActive
+        - reviewCount
+        - createdAt
+
+    ServiceListResponse:
+      type: object
+      properties:
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/Service"
+        total:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - services
+        - total
+        - page
+        - size
+        - totalPages
+
+    ServiceInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [HEALTH, BEAUTY, FITNESS, EDUCATION, HOME, OTHER]
+        price:
+          type: number
+        durationMinutes:
+          type: integer
+        location:
+          type: string
+        imageUrl:
+          type: string
+      required:
+        - title
+        - description
+        - category
+        - price
+        - durationMinutes
+        - location
+
+    ServiceUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [HEALTH, BEAUTY, FITNESS, EDUCATION, HOME, OTHER]
+        price:
+          type: number
+        durationMinutes:
+          type: integer
+        location:
+          type: string
+        imageUrl:
+          type: string
+        isActive:
+          type: boolean
+
+    Availability:
+      type: object
+      properties:
+        id:
+          type: string
+        serviceListingId:
+          type: string
+        slotDate:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        isBooked:
+          type: boolean
+      required:
+        - id
+        - serviceListingId
+        - slotDate
+        - startTime
+        - endTime
+        - isBooked
+
+    AvailabilityInput:
+      type: object
+      properties:
+        serviceListingId:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              startTime:
+                type: string
+              endTime:
+                type: string
+            required:
+              - startTime
+              - endTime
+      required:
+        - serviceListingId
+        - startDate
+        - endDate
+        - slots
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        customer:
+          $ref: "#/components/schemas/User"
+        serviceListingId:
+          type: string
+        service:
+          $ref: "#/components/schemas/Service"
+        availabilityId:
+          type: string
+        availability:
+          $ref: "#/components/schemas/Availability"
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
+        totalPrice:
+          type: number
+        notes:
+          type: ["string", "null"]
+        hasReview:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - customerId
+        - service
+        - availabilityId
+        - availability
+        - status
+        - totalPrice
+        - hasReview
+        - createdAt
+
+    BookingInput:
+      type: object
+      properties:
+        serviceListingId:
+          type: string
+        availabilityId:
+          type: string
+        notes:
+          type: string
+      required:
+        - serviceListingId
+        - availabilityId
+
+    BookingListResponse:
+      type: object
+      properties:
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        total:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - bookings
+        - total
+        - page
+        - size
+        - totalPages
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+        bookingId:
+          type: string
+        customerId:
+          type: string
+        customer:
+          $ref: "#/components/schemas/User"
+        serviceListingId:
+          type: string
+        rating:
+          type: integer
+        comment:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - bookingId
+        - customerId
+        - customer
+        - serviceListingId
+        - rating
+        - createdAt
+
+    ReviewInput:
+      type: object
+      properties:
+        bookingId:
+          type: string
+        rating:
+          type: integer
+        comment:
+          type: string
+      required:
+        - bookingId
+        - rating
+
+    ReviewListResponse:
+      type: object
+      properties:
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+        total:
+          type: integer
+        page:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - reviews
+        - total
+        - page
+        - totalPages
+
+    WeeklyRevenue:
+      type: object
+      properties:
+        week:
+          type: string
+        revenue:
+          type: number
+      required:
+        - week
+        - revenue
+
+    ProviderStats:
+      type: object
+      properties:
+        totalBookings:
+          type: integer
+        totalRevenue:
+          type: number
+        averageRating:
+          type: ["number", "null"]
+        bookingsThisMonth:
+          type: integer
+        activeServices:
+          type: integer
+        revenueByWeek:
+          type: array
+          items:
+            $ref: "#/components/schemas/WeeklyRevenue"
+      required:
+        - totalBookings
+        - totalRevenue
+        - bookingsThisMonth
+        - activeServices
+        - revenueByWeek
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+        message:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - type
+        - message
+        - isRead
+        - createdAt
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+
+    PasswordChangeInput:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+      required:
+        - currentPassword
+        - newPassword

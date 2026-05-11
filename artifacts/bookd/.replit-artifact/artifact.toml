@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Bookd"
+version = "1.0.0"
+id = "artifacts/bookd"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21096
+
+[services.development]
+run = "pnpm --filter @workspace/bookd run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bookd", "run", "build" ]
+publicDir = "artifacts/bookd/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21096"
+BASE_PATH = "/"
